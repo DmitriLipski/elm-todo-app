@@ -53,6 +53,7 @@ init =
 type Msg
     = UpdateInput String
     | AddTask Task
+    | RemoveTask Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -74,6 +75,9 @@ update msg model =
               }
             , Cmd.none
             )
+
+        RemoveTask id ->
+            ( { model | taskList = List.filter (\t -> t.id /= id) model.taskList }, Cmd.none )
 
 
 
@@ -103,7 +107,7 @@ taskListView tasks =
 
 taskView : Task -> ( String, Html Msg )
 taskView task =
-    ( String.fromInt task.id, li [] [ text task.description ] )
+    ( String.fromInt task.id, li [ onClick (RemoveTask task.id) ] [ text task.description ] )
 
 
 
