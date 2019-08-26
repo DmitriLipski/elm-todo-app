@@ -14,6 +14,7 @@ import Html.Keyed as Keyed
 type alias Model =
     { uid : Int
     , inputValue : String
+    , editInputValue : String
     , taskList : List Task
     }
 
@@ -35,10 +36,20 @@ newTask desc id =
     }
 
 
+emptyTask : Task
+emptyTask =
+    { id = 0
+    , description = ""
+    , isCompleted = False
+    , editing = False
+    }
+
+
 init : ( Model, Cmd Msg )
 init =
     ( { uid = 0
       , inputValue = ""
+      , editInputValue = ""
       , taskList =
             []
       }
@@ -55,6 +66,8 @@ type Msg
     | AddTask Task
     | RemoveTask Int
     | EditTask Int
+    | SaveTask Int
+    | OnEditTask String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -92,6 +105,26 @@ update msg model =
                                 t
                         )
                         model.taskList
+                , editInputValue = .description (Maybe.withDefault emptyTask (List.head (List.filter (\t -> t.id == id) model.taskList)))
+              }
+            , Cmd.none
+            )
+
+        OnEditTask value ->
+            ( { model | editInputValue = value }, Cmd.none )
+
+        SaveTask id ->
+            ( { model
+                | taskList =
+                    List.map
+                        (\t ->
+                            if t.id == id then
+                                { t | editing = False, description = model.editInputValue }
+
+                            else
+                                t
+                        )
+                        model.taskList
               }
             , Cmd.none
             )
@@ -107,7 +140,7 @@ view model =
         [ h1 [] [ text "Welcome todo list app" ]
         , viewInput "text" "Add new task" model.inputValue UpdateInput
         , button [ onClick (AddTask (newTask model.inputValue 1)) ] [ text "Add" ]
-        , taskListView model.taskList
+        , taskListView model
         ]
 
 
@@ -116,19 +149,19 @@ viewInput t p v toMsg =
     input [ type_ t, placeholder p, value v, onInput toMsg ] []
 
 
-taskListView : List Task -> Html Msg
-taskListView tasks =
+taskListView : Model -> Html Msg
+taskListView model =
     Keyed.ul [ class "todo-list" ] <|
-        List.map taskView tasks
+        List.map (taskView model.editInputValue) model.taskList
 
 
-taskView : Task -> ( String, Html Msg )
-taskView task =
+taskView : String -> Task -> ( String, Html Msg )
+taskView editInputValue task =
     ( String.fromInt task.id
     , if task.editing == True then
         li []
-            [ input [ type_ "text", value task.description ] []
-            , button [ onClick (EditTask task.id) ] [ text "Edit" ]
+            [ input [ type_ "text", value editInputValue, onInput OnEditTask ] []
+            , button [ onClick (SaveTask task.id) ] [ text "Save" ]
             , button [ onClick (RemoveTask task.id) ] [ text "Delete" ]
             ]
 
