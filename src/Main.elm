@@ -1,10 +1,34 @@
-module Main exposing (Model, Msg(..), init, main, update, view)
+port module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Html.Keyed as Keyed
+
+
+main : Program (Maybe Model) Model Msg
+main =
+    Browser.document
+        { init = init
+        , view = \model -> { title = "Elm • TodoMVC", body = [ view model ] }
+        , update = updateWithStorage
+        , subscriptions = \_ -> Sub.none
+        }
+
+
+port setStorage : Model -> Cmd msg
+
+
+updateWithStorage : Msg -> Model -> ( Model, Cmd Msg )
+updateWithStorage msg model =
+    let
+        ( newModel, cmds ) =
+            update msg model
+    in
+    ( newModel
+    , Cmd.batch [ setStorage newModel, cmds ]
+    )
 
 
 
@@ -27,6 +51,15 @@ type alias Task =
     }
 
 
+emptyModel : Model
+emptyModel =
+    { uid = 0
+    , inputValue = ""
+    , editInputValue = ""
+    , taskList = []
+    }
+
+
 newTask : String -> Int -> Task
 newTask desc id =
     { id = id
@@ -45,14 +78,9 @@ emptyTask =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( { uid = 0
-      , inputValue = ""
-      , editInputValue = ""
-      , taskList =
-            []
-      }
+init : Maybe Model -> ( Model, Cmd Msg )
+init maybeModel =
+    ( Maybe.withDefault emptyModel maybeModel
     , Cmd.none
     )
 
@@ -66,6 +94,7 @@ type Msg
     | AddTask Task
     | RemoveTask Int
     | EditTask Int
+    | ToggleComplete Int
     | SaveTask Int
     | OnEditTask String
 
@@ -106,6 +135,22 @@ update msg model =
                         )
                         model.taskList
                 , editInputValue = .description (Maybe.withDefault emptyTask (List.head (List.filter (\t -> t.id == id) model.taskList)))
+              }
+            , Cmd.none
+            )
+
+        ToggleComplete id ->
+            ( { model
+                | taskList =
+                    List.map
+                        (\t ->
+                            if t.id == id then
+                                { t | isCompleted = not t.isCompleted }
+
+                            else
+                                t
+                        )
+                        model.taskList
               }
             , Cmd.none
             )
@@ -167,22 +212,8 @@ taskView editInputValue task =
 
       else
         li []
-            [ span [] [ text task.description ]
+            [ span [ classList [ ( "completed", task.isCompleted ), ( "task", True ) ], onClick (ToggleComplete task.id) ] [ text task.description ]
             , button [ onClick (EditTask task.id) ] [ text "Edit" ]
             , button [ onClick (RemoveTask task.id) ] [ text "Delete" ]
             ]
     )
-
-
-
----- PROGRAM ----
-
-
-main : Program () Model Msg
-main =
-    Browser.element
-        { view = view
-        , init = \_ -> init
-        , update = update
-        , subscriptions = always Sub.none
-        }
