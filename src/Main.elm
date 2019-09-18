@@ -11,7 +11,7 @@ main : Program (Maybe Model) Model Msg
 main =
     Browser.document
         { init = init
-        , view = \model -> { title = "Elm • TodoMVC", body = [ view model ] }
+        , view = \model -> { title = "Todo List", body = [ view model ] }
         , update = updateWithStorage
         , subscriptions = \_ -> Sub.none
         }
@@ -40,6 +40,7 @@ type alias Model =
     , inputValue : String
     , editInputValue : String
     , taskList : List Task
+    , filter : String
     }
 
 
@@ -57,6 +58,7 @@ emptyModel =
     , inputValue = ""
     , editInputValue = ""
     , taskList = []
+    , filter = "All"
     }
 
 
@@ -97,6 +99,7 @@ type Msg
     | ToggleComplete Int
     | SaveTask Int
     | OnEditTask String
+    | ChangeFilter String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -174,6 +177,9 @@ update msg model =
             , Cmd.none
             )
 
+        ChangeFilter filter ->
+            ( { model | filter = filter }, Cmd.none )
+
 
 
 ---- VIEW ----
@@ -186,6 +192,7 @@ view model =
         , viewInput "text" "Add new task" model.inputValue UpdateInput
         , button [ onClick (AddTask (newTask model.inputValue 1)) ] [ text "Add" ]
         , taskListView model
+        , actionBarView model
         ]
 
 
@@ -197,7 +204,8 @@ viewInput t p v toMsg =
 taskListView : Model -> Html Msg
 taskListView model =
     Keyed.ul [ class "todo-list" ] <|
-        List.map (taskView model.editInputValue) model.taskList
+        List.map (taskView model.editInputValue) <|
+            getTasksByFilter model.filter model.taskList
 
 
 taskView : String -> Task -> ( String, Html Msg )
@@ -217,3 +225,31 @@ taskView editInputValue task =
             , button [ onClick (RemoveTask task.id) ] [ text "Delete" ]
             ]
     )
+
+
+actionBarView : Model -> Html Msg
+actionBarView model =
+    div []
+        [ span [] [ text ((String.fromInt <| List.length model.taskList) ++ " items left") ]
+        , button [ onClick (ChangeFilter "All") ] [ text "All" ]
+        , button [ onClick (ChangeFilter "Completed") ] [ text "Completed" ]
+        ]
+
+
+
+--UTILS
+
+
+getTasksByFilter : String -> List Task -> List Task
+getTasksByFilter filter tasks =
+    case filter of
+        "All" ->
+            tasks
+
+        "Completed" ->
+            List.filter
+                (\t -> t.isCompleted)
+                tasks
+
+        _ ->
+            tasks
