@@ -3,8 +3,9 @@ port module Main exposing (Model, Msg(..), init, main, update, view)
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (keyCode, on, onClick, onInput)
 import Html.Keyed as Keyed
+import Json.Decode as Json
 
 
 main : Program (Maybe Model) Model Msg
@@ -93,7 +94,7 @@ init maybeModel =
 
 type Msg
     = UpdateInput String
-    | AddTask Task
+    | AddTask
     | RemoveTask Int
     | EditTask Int
     | ToggleComplete Int
@@ -108,7 +109,7 @@ update msg model =
         UpdateInput value ->
             ( { model | inputValue = value }, Cmd.none )
 
-        AddTask _ ->
+        AddTask ->
             ( { model
                 | uid = model.uid + 1
                 , inputValue = ""
@@ -190,15 +191,28 @@ view model =
     div []
         [ h1 [] [ text "Welcome todo list app" ]
         , viewInput "text" "Add new task" model.inputValue UpdateInput
-        , button [ onClick (AddTask (newTask model.inputValue 1)) ] [ text "Add" ]
+        , button [ onClick AddTask ] [ text "Add" ]
         , taskListView model
         , actionBarView model
         ]
 
 
-viewInput : String -> String -> String -> (String -> msg) -> Html msg
+viewInput : String -> String -> String -> (String -> Msg) -> Html Msg
 viewInput t p v toMsg =
-    input [ type_ t, placeholder p, value v, onInput toMsg ] []
+    input [ type_ t, placeholder p, value v, onInput toMsg, onEnter AddTask ] []
+
+
+onEnter : Msg -> Attribute Msg
+onEnter msg =
+    let
+        isEnter code =
+            if code == 13 then
+                Json.succeed msg
+
+            else
+                Json.fail "not ENTER"
+    in
+    on "keydown" (Json.andThen isEnter keyCode)
 
 
 taskListView : Model -> Html Msg
